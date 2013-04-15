@@ -1370,6 +1370,67 @@ static int interpret_condition( type_key_value * key_value, compare_triplet_t * 
 
     }
 #endif
+
+    else if ( TEST_CRIT( key_value->varname, CRITERIA_ST_CTIME ) )
+    {
+        p_triplet->crit = CRITERIA_ST_CTIME;
+        *p_attr_mask |= ATTR_MASK_ctime;
+
+        /* a duration is expected */
+        p_triplet->val.duration = str2duration( key_value->varvalue );
+
+        if ( p_triplet->val.duration == -1 )
+        {
+            sprintf( err_msg, "Invalid format for duration in 'st_ctime' criteria: '%s'",
+                     key_value->varvalue );
+            return EINVAL;
+        }
+
+        /* any comparator is allowed */
+        p_triplet->op = syntax2conf_comparator( key_value->op_type );
+
+
+    }
+    else if ( TEST_CRIT( key_value->varname, CRITERIA_ST_MTIME ) )
+    {
+        p_triplet->crit = CRITERIA_ST_MTIME;
+        *p_attr_mask |= ATTR_MASK_mtime;
+
+        /* a duration is expected */
+        p_triplet->val.duration = str2duration( key_value->varvalue );
+
+        if ( p_triplet->val.duration == -1 )
+        {
+            sprintf( err_msg, "Invalid format for duration in 'st_mtime' criteria: '%s'",
+                     key_value->varvalue );
+            return EINVAL;
+        }
+
+        /* any comparator is allowed */
+        p_triplet->op = syntax2conf_comparator( key_value->op_type );
+
+
+    }
+    else if ( TEST_CRIT( key_value->varname, CRITERIA_ST_ATIME ) )
+    {
+        p_triplet->crit = CRITERIA_ST_ATIME;
+        *p_attr_mask |= ATTR_MASK_atime;
+
+        /* a duration is expected */
+        p_triplet->val.duration = str2duration( key_value->varvalue );
+
+        if ( p_triplet->val.duration == -1 )
+        {
+            sprintf( err_msg, "Invalid format for duration in 'st_atime' criteria: '%s'",
+                     key_value->varvalue );
+            return EINVAL;
+        }
+
+        /* any comparator is allowed */
+        p_triplet->op = syntax2conf_comparator( key_value->op_type );
+
+
+    }
     else if ( TEST_CRIT( key_value->varname, CRITERIA_POOL ) )
     {
         /* same thing for group */
@@ -1996,6 +2057,12 @@ const char    *criteria2str( compare_criteria_t crit )
     case CRITERIA_CREATION:
         return "creation";
 #endif
+    case CRITERIA_ST_CTIME:
+        return "st_ctime";
+    case CRITERIA_ST_MTIME:
+        return "st_mtime";
+    case CRITERIA_ST_ATIME:
+        return "st_atime";
     case CRITERIA_POOL:
         return "ost_pool";
     case CRITERIA_OST:
@@ -2060,6 +2127,9 @@ static int print_condition( const compare_triplet_t * p_triplet, char *out_str, 
 #ifdef ATTR_INDEX_creation_time
     case CRITERIA_CREATION:
 #endif
+    case CRITERIA_ST_CTIME:
+    case CRITERIA_ST_MTIME:
+    case CRITERIA_ST_ATIME:
         FormatDurationFloat( tmp_buff, 256, p_triplet->val.duration );
         return snprintf( out_str, str_size, "%s %s %s", criteria2str( p_triplet->crit ),
                          op2str( p_triplet->op ), tmp_buff );

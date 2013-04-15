@@ -66,6 +66,9 @@ typedef enum
 #ifdef ATTR_INDEX_creation_time
     CRITERIA_CREATION,
 #endif
+    CRITERIA_ST_CTIME,
+    CRITERIA_ST_MTIME,
+    CRITERIA_ST_ATIME,
     CRITERIA_POOL,
     CRITERIA_OST,
     CRITERIA_XATTR,
