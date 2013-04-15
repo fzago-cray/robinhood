@@ -36,8 +36,13 @@
 #include <errno.h>
 #include <libgen.h>
 #include <pthread.h>
+#include <ctype.h>
 
 #define FIND_TAG "find"
+
+#define OPT_ST_CTIME 256
+#define OPT_ST_MTIME 257
+#define OPT_ST_ATIME 258
 
 static struct option option_tab[] =
 {
@@ -52,6 +57,9 @@ static struct option option_tab[] =
     {"msec", required_argument, NULL, 'z'},
     {"atime", required_argument, NULL, 'A'},
     {"amin", required_argument, NULL, 'a'},
+    {"st-ctime", required_argument, NULL, OPT_ST_CTIME},
+    {"st-mtime", required_argument, NULL, OPT_ST_MTIME},
+    {"st-atime", required_argument, NULL, OPT_ST_ATIME},
 #ifdef _LUSTRE
     {"ost", required_argument, NULL, 'o'},
 #endif
@@ -59,6 +67,7 @@ static struct option option_tab[] =
     {"status", required_argument, NULL, 'S'},
 #endif
     {"ls", no_argument, NULL, 'l'},
+    {"lsstat", no_argument, NULL, 'e'},
 
     /* query options */
     {"not", no_argument, NULL, '!'},
@@ -113,12 +122,26 @@ struct find_opt
     compare_direction_t acc_compar;
     time_t              acc_val;
 
+    // stat ctime
+    compare_direction_t st_ctime_compar;
+    time_t              st_ctime_val;
+
+    // stat mtime
+    compare_direction_t st_mtime_compar;
+    time_t              st_mtime_val;
+
+    // stat atime
+    compare_direction_t st_atime_compar;
+    time_t              st_atime_val;
+
 #ifdef ATTR_INDEX_status
     file_status_t status;
 #endif
 
     /* output flags */
     unsigned int ls:1;
+    unsigned int lsstat:1;
+
     /* condition flags */
     unsigned int match_user:1;
     unsigned int match_group:1;
@@ -128,6 +151,9 @@ struct find_opt
     unsigned int match_ctime:1;
     unsigned int match_mtime:1;
     unsigned int match_atime:1;
+    unsigned int match_st_ctime:1;
+    unsigned int match_st_mtime:1;
+    unsigned int match_st_atime:1;
 #ifdef _LUSTRE
     unsigned int match_ost:1;
 #endif
@@ -156,6 +182,7 @@ struct find_opt
     .ls = 0, .match_user = 0, .match_group = 0,
     .match_type = 0, .match_size = 0, .match_name = 0,
     .match_ctime = 0, .match_mtime = 0, .match_atime = 0,
+    .match_st_ctime = 0, .match_st_mtime = 0, .match_st_atime = 0,
     .bulk = 0,
 #ifdef ATTR_INDEX_status
     .match_status = 0, .statusneg = 0,
@@ -173,6 +200,10 @@ struct find_opt
 #endif
 static int disp_mask = ATTR_MASK_type;
 static int query_mask = 0;
+
+#define LSSTAT_MASK (ATTR_MASK_type | ATTR_MASK_name | ATTR_MASK_uid |\
+                     ATTR_MASK_gid | ATTR_MASK_size | ATTR_MASK_ctime | \
+                     ATTR_MASK_mtime | ATTR_MASK_atime)
 
 //static lmgr_filter_t    dir_filter;
 
@@ -287,6 +318,43 @@ static int mkfilters(int exclude_dirs)
         is_expr = 1;
         query_mask |= ATTR_MASK_last_access;
     }
+
+    if (prog_options.match_st_ctime)
+    {
+        compare_value_t val;
+        val.duration = prog_options.st_ctime_val;
+        if (!is_expr)
+            CreateBoolCond(&match_expr, prog_options.st_ctime_compar, CRITERIA_ST_CTIME, val);
+        else
+            AppendBoolCond(&match_expr, prog_options.st_ctime_compar, CRITERIA_ST_CTIME, val);
+        is_expr = 1;
+        query_mask |= ATTR_MASK_ctime;
+    }
+
+    if (prog_options.match_st_mtime)
+    {
+        compare_value_t val;
+        val.duration = prog_options.st_mtime_val;
+        if (!is_expr)
+            CreateBoolCond(&match_expr, prog_options.st_mtime_compar, CRITERIA_ST_MTIME, val);
+        else
+            AppendBoolCond(&match_expr, prog_options.st_mtime_compar, CRITERIA_ST_MTIME, val);
+        is_expr = 1;
+        query_mask |= ATTR_MASK_mtime;
+    }
+
+    if (prog_options.match_st_atime)
+    {
+        compare_value_t val;
+        val.duration = prog_options.st_atime_val;
+        if (!is_expr)
+            CreateBoolCond(&match_expr, prog_options.st_atime_compar, CRITERIA_ST_ATIME, val);
+        else
+            AppendBoolCond(&match_expr, prog_options.st_atime_compar, CRITERIA_ST_ATIME, val);
+        is_expr = 1;
+        query_mask |= ATTR_MASK_atime;
+    }
+
 #ifdef _LUSTRE
     if (prog_options.match_ost)
     {
@@ -389,6 +457,12 @@ static const char *help_string =
     "       "TIME_HELP"\n"
     "    " _B "-amin" B_ " " _U "minute_crit" U_ "\n"
     "       "TIME_HELP"\n"
+    "    " _B "-st-ctime (stat ctime)" B_ " " _U "time_crit" U_ "\n"
+    "       "TIME_HELP"\n"
+    "    " _B "-st-mtime (stat mtime)" B_ " " _U "time_crit" U_ "\n"
+    "       "TIME_HELP"\n"
+    "    " _B "-st-atime (stat atime)" B_ " " _U "time_crit" U_ "\n"
+    "       "TIME_HELP"\n"
 #ifdef _LUSTRE
     "    " _B "-ost" B_ " " _U "ost_index" U_ "\n"
 #endif
@@ -402,6 +476,7 @@ static const char *help_string =
     "\n"
     _B "Output options:" B_ "\n"
     "    " _B "-ls" B_" \t: display attributes\n"
+    "    " _B "-lsstat" B_" \t: display inode stat\n"
     "\n"
     _B "Program options:" B_ "\n"
     "    " _B "-f" B_ " " _U "config_file" U_ "\n"
@@ -591,7 +666,7 @@ static int set_size_filter(char * str)
     return 0;
 }
 
-typedef enum {atime, rh_ctime, mtime} e_time;
+typedef enum { atime, rh_ctime, mtime, stat_ctime, stat_mtime, stat_atime } e_time;
 /* parse time filter and set prog_options struct */
 static int set_time_filter(char * str, unsigned int multiplier, int allow_suffix, e_time what)
 {
@@ -619,30 +694,52 @@ static int set_time_filter(char * str, unsigned int multiplier, int allow_suffix
 
     if ((n == 1) || !strcmp(suffix, ""))
     {
-        if ( what == rh_ctime )
-        {
+        switch (what) {
+        case rh_ctime:
             prog_options.crt_compar = comp;
             if (multiplier != 0)
                 prog_options.crt_val = val * multiplier;
             else /* default multiplier is days */
                 prog_options.crt_val =  val * 86400;
-        }
-        else
-        if ( what == mtime )
-        {
+            break;
+
+        case mtime:
             prog_options.mod_compar = comp;
             if (multiplier != 0)
                 prog_options.mod_val = val * multiplier;
             else /* default multiplier is days */
                 prog_options.mod_val =  val * 86400;
-        }
-        else
-        {
+            break;
+        case atime:
             prog_options.acc_compar = comp;
             if (multiplier != 0)
                 prog_options.acc_val = val * multiplier;
             else /* default multiplier is days */
                 prog_options.acc_val =  val * 86400;
+            break;
+
+        case stat_ctime:
+            prog_options.st_ctime_compar = comp;
+            if (multiplier != 0)
+                prog_options.st_ctime_val = val * multiplier;
+            else /* default multiplier is days */
+                prog_options.st_ctime_val =  val * 86400;
+            break;
+        case stat_mtime:
+            prog_options.st_mtime_compar = comp;
+            if (multiplier != 0)
+                prog_options.st_mtime_val = val * multiplier;
+            else /* default multiplier is days */
+                prog_options.st_mtime_val =  val * 86400;
+            break;
+        case stat_atime:
+            prog_options.st_atime_compar = comp;
+            if (multiplier != 0)
+                prog_options.st_atime_val = val * multiplier;
+            else /* default multiplier is days */
+                prog_options.st_atime_val =  val * 86400;
+            break;
+
         }
     }
     else
@@ -668,24 +765,55 @@ static int set_time_filter(char * str, unsigned int multiplier, int allow_suffix
                 fprintf(stderr, "Invalid suffix for time: '%s'. Expected time format: "TIME_HELP"\n", str);
                 return -EINVAL;
         }
-        if ( what == rh_ctime )
-        {
+        switch(what) {
+        case rh_ctime:
             prog_options.crt_compar = comp;
             prog_options.crt_val = val;
-        }
-        else
-        if ( what == mtime )
-        {
+            break;
+        case mtime:
             prog_options.mod_compar = comp;
             prog_options.mod_val = val;
-        }
-        else
-        {
+            break;
+        case atime:
             prog_options.acc_compar = comp;
             prog_options.acc_val = val;
+            break;
+        case stat_ctime:
+            prog_options.st_ctime_compar = comp;
+            prog_options.st_ctime_val = val;
+            break;
+        case stat_mtime:
+            prog_options.st_mtime_compar = comp;
+            prog_options.st_mtime_val = val;
+            break;
+        case stat_atime:
+            prog_options.st_atime_compar = comp;
+            prog_options.st_atime_val = val;
+            break;
         }
     }
     return 0;
+}
+
+/* Escape a file name to create a valid string. Valid filenames
+ * characters are all except NULL and /. But not everything else is
+ * printable. */
+static const char * escape_name(const char *fullname, char *buffer)
+{
+    const unsigned char *src = (const unsigned char *)fullname;
+    char *dst = buffer;
+
+    while(*src != 0) {
+        if (isprint(*src) && *src!='\\') {
+            *dst++ = *src++;
+        } else {
+            dst += sprintf(dst, "\\x%02x", *src++);
+        }
+    }
+
+    *dst = 0;                   /* NUL termination */
+
+    return buffer;
 }
 
 
@@ -752,6 +880,28 @@ static inline void print_entry(const wagon_t *id, const attr_set_t * attrs)
                    PFID(&id->id), type, mode_str, ATTR(attrs, nlink) STATUS_VAL,
                    ATTR(attrs, owner), ATTR(attrs, gr_name),
                    ATTR(attrs, size), date_str, id->fullname);
+    }
+    else if (prog_options.lsstat)
+    {
+        /* In the worst case scenario, each character will be escaped
+         * to '\xXX'; so the string can be up to 4 time the name
+         * length. */
+        char escaped_name[4*RBH_NAME_MAX+1];
+
+        /* Exclude any file with an uncomplete attributes. */
+        if ((attrs->attr_mask & LSSTAT_MASK) == LSSTAT_MASK) {
+            printf("[%s,%u,%u,%zu,%lu,%lu,%lu]=%s\n",
+                   ATTR(attrs, type),
+                   ATTR(attrs, uid),
+                   ATTR(attrs, gid),
+                   ATTR(attrs, size),
+                   ATTR(attrs, ctime),
+                   ATTR(attrs, mtime),
+                   ATTR(attrs, atime),
+                   escape_name(id->fullname, escaped_name));
+        } else {
+            printf("SKIPPED(%x,%x)=%s\n", attrs->attr_mask, LSSTAT_MASK, id->fullname);
+        }
     }
     else
     {
@@ -1170,6 +1320,36 @@ int main( int argc, char **argv )
             }
             break;
 
+        case OPT_ST_CTIME:
+            toggle_option(match_st_ctime, "st-ctime");
+            if (set_time_filter(optarg, 0, TRUE, stat_ctime))
+                exit(1);
+            if (neg) {
+                fprintf(stderr, "! (-not) is not supported for time criteria\n");
+                exit(1);
+            }
+            break;
+
+        case OPT_ST_MTIME:
+            toggle_option(match_st_mtime, "st-mtime");
+            if (set_time_filter(optarg, 0, TRUE, stat_mtime))
+                exit(1);
+            if (neg) {
+                fprintf(stderr, "! (-not) is not supported for time criteria\n");
+                exit(1);
+            }
+            break;
+
+        case OPT_ST_ATIME:
+            toggle_option(match_st_atime, "st-atime");
+            if (set_time_filter(optarg, 0, TRUE, stat_atime))
+                exit(1);
+            if (neg) {
+                fprintf(stderr, "! (-not) is not supported for time criteria\n");
+                exit(1);
+            }
+            break;
+
 
 #ifdef ATTR_INDEX_status
         case 'S':
@@ -1190,6 +1370,14 @@ int main( int argc, char **argv )
             disp_mask = DISPLAY_MASK;
             if (neg) {
                 fprintf(stderr, "! (-not) unexpected before -l option\n");
+                exit(1);
+            }
+            break;
+        case 'e':
+            prog_options.lsstat = 1;
+            disp_mask = LSSTAT_MASK;
+            if (neg) {
+                fprintf(stderr, "! (-not) unexpected before -e option\n");
                 exit(1);
             }
             break;

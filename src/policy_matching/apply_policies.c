@@ -438,6 +438,24 @@ int CriteriaToFilter(const compare_triplet_t * p_comp, int * p_attr_index,
         break;
 #endif
 
+    case CRITERIA_ST_CTIME:
+        *p_attr_index = ATTR_INDEX_ctime;
+        *p_compar = Policy2FilterComparator( oppose_compare( p_comp->op ) );
+        p_value->value.val_uint = time(NULL) - p_comp->val.duration;
+        break;
+
+    case CRITERIA_ST_MTIME:
+        *p_attr_index = ATTR_INDEX_mtime;
+        *p_compar = Policy2FilterComparator( oppose_compare( p_comp->op ) );
+        p_value->value.val_uint = time(NULL) - p_comp->val.duration;
+        break;
+
+    case CRITERIA_ST_ATIME:
+        *p_attr_index = ATTR_INDEX_atime;
+        *p_compar = Policy2FilterComparator( oppose_compare( p_comp->op ) );
+        p_value->value.val_uint = time(NULL) - p_comp->val.duration;
+        break;
+
 /** end of @TODO factorize this part of code */
 
     case CRITERIA_POOL:
@@ -675,6 +693,33 @@ static policy_match_t eval_condition( const entry_id_t * p_entry_id,
 
         break;
 #endif
+
+    case CRITERIA_ST_CTIME:
+        /* ctime is required */
+        CHECK_ATTR( p_entry_attr, ctime, no_warning );
+
+        rc = int_compare( time( NULL ) - ATTR( p_entry_attr, ctime ), p_triplet->op,
+                          time_modify(p_triplet->val.duration, p_pol_mod) );
+        return BOOL2POLICY( rc );
+        break;
+
+    case CRITERIA_ST_MTIME:
+        /* mtime is required */
+        CHECK_ATTR( p_entry_attr, mtime, no_warning );
+
+        rc = int_compare( time( NULL ) - ATTR( p_entry_attr, mtime ), p_triplet->op,
+                          time_modify(p_triplet->val.duration, p_pol_mod) );
+        return BOOL2POLICY( rc );
+        break;
+
+    case CRITERIA_ST_ATIME:
+        /* atime is required */
+        CHECK_ATTR( p_entry_attr, atime, no_warning );
+
+        rc = int_compare( time( NULL ) - ATTR( p_entry_attr, atime ), p_triplet->op,
+                          time_modify(p_triplet->val.duration, p_pol_mod) );
+        return BOOL2POLICY( rc );
+        break;
 
 #ifdef _LUSTRE
     case CRITERIA_POOL:
