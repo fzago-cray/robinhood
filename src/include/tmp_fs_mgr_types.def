@@ -129,3 +129,8 @@ rel_cl_update,      unsigned int,   DB_UINT,      0,   FREQ_ACCESS
 
 # link content in annex info
 link, char, DB_TEXT, RBH_PATH_MAX,     ANNEX_INFO | SLINK_ATTR
+
+# Real stat() times
+ctime,      time_t, 	DB_BIGUINT,    0, 	 FREQ_ACCESS
+mtime,      time_t, 	DB_BIGUINT,    0, 	 FREQ_ACCESS
+atime,      time_t, 	DB_BIGUINT,    0, 	 FREQ_ACCESS

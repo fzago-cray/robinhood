@@ -487,6 +487,13 @@ void PosixStat2EntryAttr( struct stat *p_inode, attr_set_t * p_attr_set, int siz
     ATTR_MASK_SET( p_attr_set, mode );
     ATTR( p_attr_set, mode ) = p_inode->st_mode & 07777 ; /*  mode + sticky bits */
 #endif
+
+    ATTR_MASK_SET( p_attr_set, ctime );
+    ATTR(p_attr_set, ctime) = p_inode->st_ctime;
+    ATTR_MASK_SET( p_attr_set, mtime );
+    ATTR(p_attr_set, mtime) = p_inode->st_mtime;
+    ATTR_MASK_SET( p_attr_set, atime );
+    ATTR(p_attr_set, atime) = p_inode->st_atime;
 }
 
 #ifndef HAVE_GETMNTENT_R
