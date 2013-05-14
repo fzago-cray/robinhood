@@ -1108,13 +1108,13 @@ static int check_usergroup_trigger( unsigned trigger_index )
     {
         what = "user";
         what_up = "User";
-        what_index = ATTR_INDEX_owner;
+        what_index = ATTR_INDEX_uid;
     }
     else
     {
         what = "group";
         what_up = "Group";
-        what_index = ATTR_INDEX_gr_name;
+        what_index = ATTR_INDEX_gid;
     }
 
     update_trigger_status( trigger_index, TRIG_BEING_CHECKED );

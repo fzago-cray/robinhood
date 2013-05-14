@@ -578,7 +578,7 @@ int perform_purge( lmgr_t * lmgr, purge_param_t * p_purge_param,
         /* We must retrieve files for this user, sorted by atime */
 
         fval.value.val_str = p_purge_param->param_u.user_name;
-        rc = lmgr_simple_filter_add( &filter, ATTR_INDEX_owner, EQUAL, fval, 0 );
+        rc = lmgr_simple_filter_add( &filter, ATTR_INDEX_uid, EQUAL, fval, 0 );
 
         if ( rc )
             return rc;
@@ -591,7 +591,7 @@ int perform_purge( lmgr_t * lmgr, purge_param_t * p_purge_param,
         /* We must retrieve files for this group, sorted by atime */
 
         fval.value.val_str = p_purge_param->param_u.group_name;
-        rc = lmgr_simple_filter_add( &filter, ATTR_INDEX_gr_name, EQUAL, fval, 0 );
+        rc = lmgr_simple_filter_add( &filter, ATTR_INDEX_gid, EQUAL, fval, 0 );
         if ( rc )
             return rc;
         break;

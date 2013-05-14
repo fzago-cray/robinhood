@@ -162,8 +162,9 @@ static int check_field_name(const char *name, int *curr_field_index,
                    fieldtab[*curr_field_index]);
         if (!strcmp(table, ACCT_TABLE))
             DisplayLog(LVL_CRIT, LISTMGR_TAG,
-                       "Incompatible database schema (unexpected field '%s' in table %s): "DROP_ACCT_MSG,
-                       fieldtab[*curr_field_index], table);
+                       "Incompatible database schema (unexpected field '%s' %s in table %s): "DROP_ACCT_MSG,
+                       fieldtab[*curr_field_index], name, table );
+
         else
             DisplayLog(LVL_CRIT, LISTMGR_TAG,
                        "Incompatible database schema (unexpected field '%s' in table %s): "DROP_MESSAGE,
@@ -418,12 +419,12 @@ static int create_table_main(db_conn_t *pconn)
             }
             else
 #endif
-            if (i == ATTR_INDEX_owner)
+            if (i == ATTR_INDEX_uid)
             {
                 default_val.val_str = ACCT_DEFAULT_OWNER;
                 next += append_field_def(i, next, 0, &default_val);
             }
-            else if (i == ATTR_INDEX_gr_name)
+            else if (i == ATTR_INDEX_gid)
             {
                 default_val.val_str = ACCT_DEFAULT_GROUP;
                 next += append_field_def(i, next, 0, &default_val);

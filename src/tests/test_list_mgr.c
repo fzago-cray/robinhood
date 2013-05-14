@@ -38,14 +38,14 @@ void random_attrset( attr_set_t * p_set )
 #ifdef _TMP_FS_MGR
 
     p_set->attr_mask |=
-        ATTR_MASK_fullpath | ATTR_MASK_depth | ATTR_MASK_owner | ATTR_MASK_gr_name |
+        ATTR_MASK_fullpath | ATTR_MASK_depth | ATTR_MASK_uid | ATTR_MASK_gid |
         ATTR_MASK_size | ATTR_MASK_blocks | ATTR_MASK_blksize |
         ATTR_MASK_last_access | ATTR_MASK_last_mod;
 
     sprintf( ATTR( p_set, fullpath ), "/tutu/toto%u/titi%u", myrand( 10000 ), myrand( 10000 ) );
     ATTR( p_set, depth ) = myrand( 256 );
-    sprintf( ATTR( p_set, owner ), "titi%u", myrand( 1000 ) );
-    sprintf( ATTR( p_set, gr_name ), "titi%u", myrand( 1000 ) );
+    sprintf( ATTR( p_set, uid ), "titi%u", myrand( 1000 ) );
+    sprintf( ATTR( p_set, gid ), "titi%u", myrand( 1000 ) );
     ATTR( p_set, size ) = myrand( 1024 * 1024 );
     ATTR( p_set, blocks ) = ATTR( p_set, size ) / DEV_BSIZE;
     ATTR( p_set, blksize ) = DEV_BSIZE;
@@ -54,13 +54,13 @@ void random_attrset( attr_set_t * p_set )
     ATTR( p_set, penalty ) = myrand( 3600 );
 #else
     p_set->attr_mask |=
-        ATTR_MASK_fullpath | ATTR_MASK_owner | ATTR_MASK_gr_name |
+        ATTR_MASK_fullpath | ATTR_MASK_uid | ATTR_MASK_gid |
         ATTR_MASK_creation_time | ATTR_MASK_size |
         ATTR_MASK_last_access | ATTR_MASK_last_mod | ATTR_MASK_status;
 
     sprintf( ATTR( p_set, fullpath ), "/tutu/toto%u/titi%u", myrand( 10000 ), myrand( 10000 ) );
-    strcpy( ATTR( p_set, owner ), "root" );
-    strcpy( ATTR( p_set, gr_name ), "gpocre" );
+    strcpy( ATTR( p_set, uid ), "root" );
+    strcpy( ATTR( p_set, gid ), "gpocre" );
     ATTR( p_set, size ) = myrand( 1024 * 1024 );
     ATTR( p_set, last_access ) = time( NULL ) - myrand( 80000 );
     ATTR( p_set, last_mod ) = time( NULL ) - myrand( 80000 );
@@ -307,12 +307,12 @@ int main( int argc, char **argv )
     i = 0;
 #if defined(_LUSTRE_HSM) || defined(_HSM_LITE)
     set.attr_mask =
-        ATTR_MASK_fullpath | ATTR_MASK_owner | ATTR_MASK_gr_name |
+        ATTR_MASK_fullpath | ATTR_MASK_uid | ATTR_MASK_gid |
         ATTR_MASK_creation_time | ATTR_MASK_size | ATTR_MASK_stripe_info |
         ATTR_MASK_last_access | ATTR_MASK_last_mod | ATTR_MASK_status ;
 #else
     set.attr_mask =
-        ATTR_MASK_fullpath | ATTR_MASK_depth | ATTR_MASK_owner | ATTR_MASK_gr_name |
+        ATTR_MASK_fullpath | ATTR_MASK_depth | ATTR_MASK_uid | ATTR_MASK_gid |
         ATTR_MASK_size | ATTR_MASK_blocks | ATTR_MASK_stripe_info |
         ATTR_MASK_last_access | ATTR_MASK_last_mod;
 #endif
@@ -374,7 +374,7 @@ int main( int argc, char **argv )
 
         /* user, type, count, sum_size, max_dircount */
 
-        descr[0].attr_index = ATTR_INDEX_owner;
+        descr[0].attr_index = ATTR_INDEX_uid;
         descr[0].report_type = REPORT_GROUP_BY;
         descr[0].sort_flag = SORT_ASC;
         descr[0].filter = FALSE;
@@ -407,7 +407,7 @@ int main( int argc, char **argv )
         lmgr_simple_filter_init( &filter );
 
         fv.val_str = "leibovi";
-        lmgr_simple_filter_add( &filter, ATTR_INDEX_owner, EQUAL, fv );
+        lmgr_simple_filter_add( &filter, ATTR_INDEX_uid, EQUAL, fv );
 
         report = ListMgr_Report( &lmgr, descr, FIELD_COUNT, &filter, &opt );
 
