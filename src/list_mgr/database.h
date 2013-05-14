@@ -27,8 +27,8 @@
 #define ACCT_TRIGGER_UPDATE "ACCT_ENTRY_UPDATE"
 #define ACCT_TRIGGER_DELETE "ACCT_ENTRY_DELETE"
 #define ACCT_FIELD_COUNT    "count"
-#define ACCT_DEFAULT_OWNER  "unknown"
-#define ACCT_DEFAULT_GROUP  "unknown"
+#define ACCT_DEFAULT_OWNER  "0"
+#define ACCT_DEFAULT_GROUP  "0"
 
 /* name of sz fields */
 #define ACCT_SIZE_PREFIX "sz"

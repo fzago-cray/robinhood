@@ -1123,11 +1123,11 @@ static int interpret_condition( type_key_value * key_value, compare_triplet_t * 
 
     }
 #endif
-    else if ( TEST_CRIT( key_value->varname, CRITERIA_OWNER ) )
+    else if ( TEST_CRIT( key_value->varname, CRITERIA_UNAME ) )
     {
         /* user name, possibly with wildcards */
-        p_triplet->crit = CRITERIA_OWNER;
-        *p_attr_mask |= ATTR_MASK_owner;
+        p_triplet->crit = CRITERIA_UNAME;
+        *p_attr_mask |= ATTR_MASK_uid;
 
         strncpy( p_triplet->val.str, key_value->varvalue, RBH_PATH_MAX );
         p_triplet->op = syntax2conf_comparator( key_value->op_type );
@@ -1149,11 +1149,30 @@ static int interpret_condition( type_key_value * key_value, compare_triplet_t * 
 
 
     }
-    else if ( TEST_CRIT( key_value->varname, CRITERIA_GROUP ) )
+    else if ( TEST_CRIT( key_value->varname, CRITERIA_UID ) )
+    {
+        /* user name, possibly with wildcards */
+        p_triplet->crit = CRITERIA_UID;
+        *p_attr_mask |= ATTR_MASK_uid;
+
+        p_triplet->val.integer = str2int( key_value->varvalue );
+        p_triplet->op = syntax2conf_comparator( key_value->op_type );
+
+        if ( p_triplet->val.size == ( unsigned long long ) -1 )
+        {
+            strcpy( err_msg, "Illegal 'uid' criteria value" );
+            return EINVAL;
+        }
+
+        /* any comparator is allowed */
+        p_triplet->op = syntax2conf_comparator( key_value->op_type );
+
+    }
+    else if ( TEST_CRIT( key_value->varname, CRITERIA_GNAME ) )
     {
         /* same thing for group */
-        p_triplet->crit = CRITERIA_GROUP;
-        *p_attr_mask |= ATTR_MASK_gr_name;
+        p_triplet->crit = CRITERIA_GNAME;
+        *p_attr_mask |= ATTR_MASK_gid;
 
         strncpy( p_triplet->val.str, key_value->varvalue, RBH_PATH_MAX );
         p_triplet->op = syntax2conf_comparator( key_value->op_type );
@@ -1164,7 +1183,7 @@ static int interpret_condition( type_key_value * key_value, compare_triplet_t * 
             return EINVAL;
         }
 
-        /* in case the string containts regexpr, those comparators are changed to LIKE / UNLIKE */
+        /* in case the string contains regexpr, those comparators are changed to LIKE / UNLIKE */
         if ( WILDCARDS_IN( p_triplet->val.str ) )
         {
             if ( p_triplet->op == COMP_EQUAL )
@@ -1172,6 +1191,25 @@ static int interpret_condition( type_key_value * key_value, compare_triplet_t * 
             else if ( p_triplet->op == COMP_DIFF )
                 p_triplet->op = COMP_UNLIKE;
         }
+
+    }
+    else if ( TEST_CRIT( key_value->varname, CRITERIA_GID ) )
+    {
+        /* same thing for group */
+        p_triplet->crit = CRITERIA_GID;
+        *p_attr_mask |= ATTR_MASK_gid;
+
+        p_triplet->val.integer = str2int( key_value->varvalue );
+        p_triplet->op = syntax2conf_comparator( key_value->op_type );
+
+        if ( p_triplet->val.size == ( unsigned long long ) -1 )
+        {
+            strcpy( err_msg, "Illegal 'gid' criteria value" );
+            return EINVAL;
+        }
+
+        /* any comparator is allowed */
+        p_triplet->op = syntax2conf_comparator( key_value->op_type );
 
     }
     else if ( TEST_CRIT( key_value->varname, CRITERIA_SIZE ) )
@@ -1987,10 +2025,14 @@ const char    *criteria2str( compare_criteria_t crit )
     case CRITERIA_TYPE:
         return "type";
 #endif
-    case CRITERIA_OWNER:
+    case CRITERIA_UNAME:
         return "owner";
-    case CRITERIA_GROUP:
+    case CRITERIA_UID:
+        return "uid";
+    case CRITERIA_GNAME:
         return "group";
+    case CRITERIA_GID:
+        return "gid";
     case CRITERIA_SIZE:
         return "size";
     case CRITERIA_DEPTH:
@@ -2044,8 +2086,8 @@ static int print_condition( const compare_triplet_t * p_triplet, char *out_str, 
     case CRITERIA_TREE:
     case CRITERIA_PATH:
     case CRITERIA_FILENAME:
-    case CRITERIA_OWNER:
-    case CRITERIA_GROUP:
+    case CRITERIA_UNAME:
+    case CRITERIA_GNAME:
     case CRITERIA_POOL:
         return snprintf( out_str, str_size, "%s %s \"%s\"", criteria2str( p_triplet->crit ),
                          op2str( p_triplet->op ), p_triplet->val.str );
@@ -2057,6 +2099,8 @@ static int print_condition( const compare_triplet_t * p_triplet, char *out_str, 
 #endif
 
         /* int values */
+    case CRITERIA_UID:
+    case CRITERIA_GID:
     case CRITERIA_DEPTH:
     case CRITERIA_OST:
 #ifdef ATTR_INDEX_dircount

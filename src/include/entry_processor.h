@@ -226,8 +226,8 @@ typedef struct entry_proc_op_t
          ATTR(&(_entry_op_p)->fs_attrs, _attr):           \
          ATTR(&(_entry_op_p)->db_attrs, _attr))
 
-#define POSIX_ATTR_MASK (ATTR_MASK_size | ATTR_MASK_blocks | ATTR_MASK_owner \
-                         | ATTR_MASK_gr_name | ATTR_MASK_last_access \
+#define POSIX_ATTR_MASK (ATTR_MASK_size | ATTR_MASK_blocks | ATTR_MASK_uid \
+                         | ATTR_MASK_gid | ATTR_MASK_last_access \
                          | ATTR_MASK_last_mod | ATTR_MASK_type | ATTR_MASK_mode \
                          | ATTR_MASK_nlink )
 

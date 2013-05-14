@@ -154,8 +154,8 @@ static inline int check_field( int i, int * curr_field_index, char *table, char 
                     field_infos[i].field_name, fieldtab[*curr_field_index] );
         if (!strcmp(table, ACCT_TABLE))
             DisplayLog( LVL_CRIT, LISTMGR_TAG,
-                        "Incompatible database schema (unexpected field '%s' in table %s): "DROP_ACCT_MSG,
-                        fieldtab[*curr_field_index], table );
+                        "Incompatible database schema (unexpected field '%s' %s in table %s): "DROP_ACCT_MSG,
+                        fieldtab[*curr_field_index], field_infos[i].field_name, table );
         else
             DisplayLog( LVL_CRIT, LISTMGR_TAG,
                         "Incompatible database schema (unexpected field '%s' in table %s): "DROP_MESSAGE,
@@ -436,12 +436,12 @@ int ListMgr_Init( const lmgr_config_t * p_conf, int report_only )
                     }
                     else
 #endif
-                    if ( i == ATTR_INDEX_owner )
+                    if ( i == ATTR_INDEX_uid )
                     {
                         default_val.val_str = ACCT_DEFAULT_OWNER;
                         next += append_field_def( i, next, 0, &default_val );
                     }
-                    else if ( i == ATTR_INDEX_gr_name )
+                    else if ( i == ATTR_INDEX_gid )
                     {
                         default_val.val_str = ACCT_DEFAULT_GROUP;
                         next += append_field_def( i, next, 0, &default_val );

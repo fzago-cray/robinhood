@@ -212,7 +212,6 @@ int rbh_scrub(lmgr_t   * p_mgr, const wagon_t * id_list,
 
         rc = ListMgr_GetChild(p_mgr, &filter, curr_array, count, dir_attr_mask,
                               &child_ids, &child_attrs, &res_count);
-
         if (rc)
         {
             DisplayLog(LVL_CRIT, SCRUB_TAG, "ListMgr_GetChild() terminated with error %d", rc);

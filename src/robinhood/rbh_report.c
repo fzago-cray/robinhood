@@ -1253,8 +1253,8 @@ static inline const char * attrindex2name(unsigned int index)
 #ifdef ATTR_INDEX_type
         case ATTR_INDEX_type: return "type";
 #endif
-        case ATTR_INDEX_owner: return "user";
-        case ATTR_INDEX_gr_name: return "group";
+        case ATTR_INDEX_uid: return "user";
+        case ATTR_INDEX_gid: return "group";
         case ATTR_INDEX_blocks: return "spc_used";
         case ATTR_INDEX_size: return "size";
         case ATTR_INDEX_last_access: return "last_access";
@@ -1290,8 +1290,8 @@ static inline unsigned int attrindex2len(unsigned int index, int csv)
         case ATTR_INDEX_type: return 8;
 #endif
         case ATTR_INDEX_fullpath: return 40;
-        case ATTR_INDEX_owner: return 10;
-        case ATTR_INDEX_gr_name: return 10;
+        case ATTR_INDEX_uid: return 10;
+        case ATTR_INDEX_gid: return 10;
 
         case ATTR_INDEX_last_access: return 20;
         case ATTR_INDEX_last_mod: return 20;
@@ -1315,6 +1315,37 @@ static inline unsigned int attrindex2len(unsigned int index, int csv)
     }
     return 1;
 }
+
+/* TODO - TEMP - these two should be in the uid/gid cache code. And
+ * they're also not robust. */
+static int uname2uid (const char *uname)
+{
+    struct passwd p;
+    char buf[4096];
+    struct passwd *res = NULL;
+    int rc;
+
+    rc = getpwnam_r(uname, &p, buf, 4096, &res);
+    if (rc == 0 && res != NULL)
+        return res->pw_uid;
+    else
+        return -1;
+}
+
+static int group2gid (const char *gname)
+{
+    struct group gs;
+    char buf[4096];
+    struct group *res = NULL;
+    int rc;
+
+    rc = getgrnam_r(gname, &gs, buf, 4096, &res);
+    if (rc == 0 && res != NULL)
+        return res->gr_gid;
+    else
+        return -1;
+}
+
 
 #define PROF_CNT_LEN     8
 #define PROF_RATIO_LEN   7
@@ -1441,8 +1472,24 @@ static const char * attr2str(attr_set_t * attrs, const entry_id_t * id,
         case ATTR_INDEX_type:
              return ATTR(attrs, type);
 #endif
-        case ATTR_INDEX_owner: return ATTR(attrs, owner);
-        case ATTR_INDEX_gr_name: return ATTR(attrs, gr_name);
+        case ATTR_INDEX_uid: {
+            const struct passwd *passwd = GetPwUid(ATTR(attrs, uid));
+
+            if (passwd)
+                sprintf(out, "%s", passwd->pw_name);
+            else
+                sprintf(out, "(%"PRIu32")", ATTR(attrs, uid));
+            return out;
+        }
+        case ATTR_INDEX_gid: {
+            const struct group *group = GetGrGid(ATTR(attrs, gid));
+
+            if (group)
+                sprintf(out, "%s", group->gr_name);
+            else
+                sprintf(out, "(%"PRIu32")", ATTR(attrs, gid));
+            return out;
+        }
         case ATTR_INDEX_blocks:
             if (csv)
                 sprintf(out, "%"PRIu64, ATTR(attrs, blocks) * DEV_BSIZE);
@@ -1586,11 +1633,29 @@ static inline const char * result_val2str(const report_field_descr_t * desc,
 #endif
 #ifdef ATTR_INDEX_type
         case ATTR_INDEX_type:
-#endif
-        case ATTR_INDEX_owner:
-        case ATTR_INDEX_gr_name:
             strcpy(out, val->value_u.val_str);
             break;
+#endif
+        case ATTR_INDEX_uid:
+        {
+            struct passwd *passwd = GetPwUid(val->value_u.val_int);
+
+            if (passwd)
+                sprintf(out, "%s", passwd->pw_name);
+            else
+                sprintf(out, "%u", val->value_u.val_int);
+        }
+        break;
+        case ATTR_INDEX_gid:
+        {
+            struct group *group = GetGrGid(val->value_u.val_int);
+
+            if (group)
+                sprintf(out, "%s", group->gr_name);
+            else
+                sprintf(out, "%u", val->value_u.val_int);
+        }
+        break;
         case ATTR_INDEX_size:
             if (csv)
                 sprintf(out, "%Lu", val->value_u.val_biguint);
@@ -1728,8 +1793,8 @@ static void dump_entries( type_dump type, int int_arg, char * str_arg, value_lis
                    ATTR_INDEX_status,
 #endif
                    ATTR_INDEX_size,
-                   ATTR_INDEX_owner,
-                   ATTR_INDEX_gr_name,
+                   ATTR_INDEX_uid,
+                   ATTR_INDEX_gid,
 #ifdef ATTR_INDEX_archive_class
                    ATTR_INDEX_archive_class,
 #endif
@@ -1775,12 +1840,26 @@ static void dump_entries( type_dump type, int int_arg, char * str_arg, value_lis
             /* no filter */
             break;
         case DUMP_USR:
-            fv.value.val_str = str_arg;
-            lmgr_simple_filter_add( &filter, ATTR_INDEX_owner, LIKE, fv, 0 );
+            if ( WILDCARDS_IN( str_arg ) ) {
+                fv.value.val_str = str_arg;
+                lmgr_simple_filter_add( &filter, ATTR_INDEX_gid, LIKE, fv, 0 );
+            } else {
+                fv.value.val_int = uname2uid(str_arg);
+                if (fv.value.val_int == -1)
+                    return;
+                lmgr_simple_filter_add( &filter, ATTR_INDEX_uid, EQUAL, fv, 0 );
+            }
             break;
         case DUMP_GROUP:
-            fv.value.val_str = str_arg;
-            lmgr_simple_filter_add( &filter, ATTR_INDEX_gr_name, LIKE, fv, 0 );
+            if ( WILDCARDS_IN( str_arg ) ) {
+                fv.value.val_str = str_arg;
+                lmgr_simple_filter_add( &filter, ATTR_INDEX_gid, LIKE, fv, 0 );
+            } else {
+                fv.value.val_int = group2gid(str_arg);
+                if (fv.value.val_int == -1)
+                    return;
+                lmgr_simple_filter_add( &filter, ATTR_INDEX_gid, EQUAL, fv, 0 );
+            }
             break;
         case DUMP_OST:
             if (ost_list->count == 1)
@@ -2070,33 +2149,33 @@ static void report_usergroup_info( char *name, int flags )
 
     if (ISSPLITUSERGROUP(flags) && ISGROUP(flags))
     {
-        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_gr_name,
+        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_gid,
                                 REPORT_GROUP_BY, REVERSE(flags)?SORT_DESC:SORT_ASC );
         field_count++;
-        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_owner,
+        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_uid,
                                 REPORT_GROUP_BY, REVERSE(flags)?SORT_DESC:SORT_ASC );
         field_count++;
         shift++ ;
     }
     else if (ISSPLITUSERGROUP(flags) && !ISGROUP(flags))
     {
-        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_owner,
+        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_uid,
                                 REPORT_GROUP_BY, REVERSE(flags)?SORT_DESC:SORT_ASC );
         field_count++;
-        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_gr_name,
+        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_gid,
                                 REPORT_GROUP_BY, REVERSE(flags)?SORT_DESC:SORT_ASC );
         field_count++;
         shift++;
     }
     else if (ISGROUP(flags))
     {
-        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_gr_name,
+        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_gid,
                                 REPORT_GROUP_BY, REVERSE(flags)?SORT_DESC:SORT_ASC );
         field_count++;
     }
     else
     {
-        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_owner,
+        set_report_rec_nofilter(&user_info[field_count], ATTR_INDEX_uid,
                                 REPORT_GROUP_BY, REVERSE(flags)?SORT_DESC:SORT_ASC );
         field_count++;
     }
@@ -2145,12 +2224,21 @@ static void report_usergroup_info( char *name, int flags )
         lmgr_simple_filter_init( &filter );
         is_filter = TRUE;
 
-        fv.value.val_str = name;
-
-        if ( WILDCARDS_IN( name ) )
-            lmgr_simple_filter_add( &filter, (ISGROUP(flags)?ATTR_INDEX_gr_name:ATTR_INDEX_owner), LIKE, fv, 0 );
-        else
-            lmgr_simple_filter_add( &filter, (ISGROUP(flags)?ATTR_INDEX_gr_name:ATTR_INDEX_owner), EQUAL, fv, 0 );
+        if ( WILDCARDS_IN( name ) ) {
+            fv.value.val_str = name;
+            lmgr_simple_filter_add( &filter, (ISGROUP(flags)?ATTR_INDEX_gid:ATTR_INDEX_uid), LIKE, fv, 0 );
+        } else {
+            if (ISGROUP(flags)) {
+                fv.value.val_int = group2gid(name);
+                if (fv.value.val_int == -1)
+                    return;
+            } else {
+                fv.value.val_int = uname2uid(name);
+                if (fv.value.val_int == -1)
+                    return;
+            }
+            lmgr_simple_filter_add( &filter, (ISGROUP(flags)?ATTR_INDEX_gid:ATTR_INDEX_uid), EQUAL, fv, 0 );
+        }
     }
 
     /* append global filters */
@@ -2222,8 +2310,8 @@ static void report_topdirs( unsigned int count, int flags )
     int list[] = { ATTR_INDEX_fullpath,
                    ATTR_INDEX_dircount,
                    ATTR_INDEX_avgsize,
-                   ATTR_INDEX_owner,
-                   ATTR_INDEX_gr_name,
+                   ATTR_INDEX_uid,
+                   ATTR_INDEX_gid,
                    ATTR_INDEX_last_mod };
     int list_cnt = sizeof(list)/sizeof(int);
 
@@ -2317,8 +2405,8 @@ static void report_topsize( unsigned int count, int flags )
                    ATTR_INDEX_status,
 #endif
                    ATTR_INDEX_size,
-                   ATTR_INDEX_owner,
-                   ATTR_INDEX_gr_name,
+                   ATTR_INDEX_uid,
+                   ATTR_INDEX_gid,
                    ATTR_INDEX_last_access,
                    ATTR_INDEX_last_mod,
 #ifdef ATTR_INDEX_archive_class
@@ -2507,8 +2595,8 @@ static void report_toprmdir( unsigned int count, int flags )
 
     int list[] = {
                 ATTR_INDEX_fullpath,
-                ATTR_INDEX_owner,
-                ATTR_INDEX_gr_name,
+                ATTR_INDEX_uid,
+                ATTR_INDEX_gid,
                 ATTR_INDEX_last_mod
                 };
     int list_cnt = sizeof(list)/sizeof(int);
@@ -2547,8 +2635,8 @@ static void report_toprmdir( unsigned int count, int flags )
 
     ATTR_MASK_INIT( &attrs );
     ATTR_MASK_SET( &attrs, fullpath );
-    ATTR_MASK_SET( &attrs, owner );
-    ATTR_MASK_SET( &attrs, gr_name );
+    ATTR_MASK_SET( &attrs, uid );
+    ATTR_MASK_SET( &attrs, gid );
     ATTR_MASK_SET( &attrs, last_mod );
 
     mask_sav = attrs.attr_mask;
@@ -2629,7 +2717,7 @@ static void report_topuser( unsigned int count, int flags )
      * - MIN/MAX/AVG size
      */
     report_field_descr_t user_info[TOPUSERCOUNT] = {
-        {ATTR_INDEX_owner, REPORT_GROUP_BY, SORT_NONE, FALSE, 0, FV_NULL},
+        {ATTR_INDEX_uid, REPORT_GROUP_BY, SORT_NONE, FALSE, 0, FV_NULL},
         {ATTR_INDEX_blocks, REPORT_SUM, SORT_DESC, FALSE, 0, FV_NULL},
         {0, REPORT_COUNT, SORT_NONE, FALSE, 0, FV_NULL},
         {ATTR_INDEX_size, REPORT_MIN, SORT_NONE, FALSE, 0, FV_NULL},
