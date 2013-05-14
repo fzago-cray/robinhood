@@ -177,7 +177,8 @@ int update_boolexpr( const bool_node_t * tgt, const bool_node_t * src )
             /* integer conditions */
         case CRITERIA_DEPTH:
         case CRITERIA_OST:
-
+        case CRITERIA_UID:
+        case CRITERIA_GID:
 #ifdef ATTR_INDEX_dircount
         case CRITERIA_DIRCOUNT:
 #endif
@@ -240,8 +241,8 @@ int update_boolexpr( const bool_node_t * tgt, const bool_node_t * src )
         case CRITERIA_TREE:
         case CRITERIA_PATH:
         case CRITERIA_FILENAME:
-        case CRITERIA_OWNER:
-        case CRITERIA_GROUP:
+        case CRITERIA_UNAME:
+        case CRITERIA_GNAME:
         case CRITERIA_POOL:
             if ( strcmp( p_triplet1->val.str, p_triplet2->val.str ) )
             {

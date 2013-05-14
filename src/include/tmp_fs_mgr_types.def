@@ -110,8 +110,8 @@ stripe_info, 	stripe_info_t, DB_STRIPE_INFO, 0, INIT_ONLY
 stripe_items, stripe_items_t, DB_STRIPE_ITEMS, 0, INIT_ONLY
 
 # info in main table
-owner, 	char, DB_TEXT, 128, FREQ_ACCESS
-gr_name, 	char, DB_TEXT, 128, FREQ_ACCESS
+uid, 	uid_t, DB_UINT, 0, FREQ_ACCESS
+gid, 	gid_t, DB_UINT, 0, FREQ_ACCESS
 size, 	uint64_t, DB_BIGUINT, 0, FREQ_ACCESS
 blocks, 	uint64_t, DB_BIGUINT, 0, FREQ_ACCESS
 creation_time, 		time_t, 	DB_BIGUINT,    0, 	 INIT_ONLY

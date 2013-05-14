@@ -28,6 +28,7 @@
 #include "Memory.h"
 #include "xplatform_print.h"
 
+#include <sys/types.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -35,6 +36,8 @@
 #include <errno.h>
 #include <libgen.h>
 #include <pthread.h>
+#include <pwd.h>
+#include <grp.h>
 
 #define DU_TAG "du"
 
@@ -253,25 +256,52 @@ static int mkfilters( void )
     if (prog_options.match_user)
     {
         compare_value_t val;
-        strcpy(val.str, prog_options.user);
+        struct passwd *passwd;
+
+        /* TODO: we should select either CRITERIA_UID or
+         * CRITERIA_UNAME. Usernames with regex are not supported. */
+
+        /* username to uid. */
+        passwd = getpwnam(prog_options.user);
+        if (passwd) {
+            val.integer = passwd->pw_uid;
+        } else {
+            /* Some invalid value ? */
+            val.integer = str2int(prog_options.user);
+        }
+
         if (!is_expr)
-            CreateBoolCond(&match_expr, COMP_LIKE, CRITERIA_OWNER, val);
+            CreateBoolCond(&match_expr, COMP_LIKE, CRITERIA_UID, val);
         else
-            AppendBoolCond(&match_expr, COMP_LIKE, CRITERIA_OWNER, val);
+            AppendBoolCond(&match_expr, COMP_LIKE, CRITERIA_UID, val);
         is_expr = 1;
-        query_mask |= ATTR_MASK_owner;
+        query_mask |= ATTR_MASK_uid;
     }
 
     if (prog_options.match_group)
     {
         compare_value_t val;
-        strcpy(val.str, prog_options.group);
+        struct group *group;
+
+        /* TODO: we should select either CRITERIA_GID or
+         * CRITERIA_GNAME. Groupnames with regex are not supported. */
+
+        /* group name to gid. */
+        group = getgrnam(prog_options.group);
+        if (group) {
+            val.integer = group->gr_gid;
+        } else {
+            /* Some invalid value ? */
+            val.integer = str2int(prog_options.group);
+        }
+
         if (!is_expr)
-            CreateBoolCond(&match_expr, COMP_LIKE, CRITERIA_GROUP, val);
+            CreateBoolCond(&match_expr, COMP_LIKE, CRITERIA_GID, val);
         else
-            AppendBoolCond(&match_expr, COMP_LIKE, CRITERIA_GROUP, val);
+            AppendBoolCond(&match_expr, COMP_LIKE, CRITERIA_GID, val);
+
         is_expr = 1;
-        query_mask |= ATTR_MASK_gr_name;
+        query_mask |= ATTR_MASK_gid;
     }
 
     if (prog_options.match_type)

@@ -28,6 +28,7 @@
 #include "RobinhoodMisc.h"
 #include "Memory.h"
 #include "xplatform_print.h"
+#include "uidgidcache.h"
 
 #include <unistd.h>
 #include <getopt.h>
@@ -195,11 +196,11 @@ struct find_opt
 };
 
 #ifdef ATTR_INDEX_status
-#define DISPLAY_MASK (ATTR_MASK_type | ATTR_MASK_nlink | ATTR_MASK_mode | ATTR_MASK_owner |\
-                      ATTR_MASK_gr_name | ATTR_MASK_size | ATTR_MASK_last_mod | ATTR_MASK_link | ATTR_MASK_status)
+#define DISPLAY_MASK (ATTR_MASK_type | ATTR_MASK_nlink | ATTR_MASK_mode | ATTR_MASK_uid |\
+                      ATTR_MASK_gid | ATTR_MASK_size | ATTR_MASK_last_mod | ATTR_MASK_link | ATTR_MASK_status)
 #else
-#define DISPLAY_MASK (ATTR_MASK_type | ATTR_MASK_nlink | ATTR_MASK_mode | ATTR_MASK_owner |\
-                      ATTR_MASK_gr_name | ATTR_MASK_size | ATTR_MASK_last_mod | ATTR_MASK_link )
+#define DISPLAY_MASK (ATTR_MASK_type | ATTR_MASK_nlink | ATTR_MASK_mode | ATTR_MASK_uid |\
+                      ATTR_MASK_gid | ATTR_MASK_size | ATTR_MASK_last_mod | ATTR_MASK_link )
 #endif
 static int disp_mask = ATTR_MASK_type;
 static int query_mask = 0;
@@ -230,33 +231,60 @@ static int mkfilters(int exclude_dirs)
     if (prog_options.match_user)
     {
         compare_value_t val;
-        strcpy(val.str, prog_options.user);
+        struct passwd *passwd;
+
+        /* TODO: we should select either CRITERIA_UID or
+         * CRITERIA_UNAME. Usernames with regex are not supported. */
+
+        /* username to uid. */
+        passwd = getpwnam(prog_options.user);
+        if (passwd) {
+            val.integer = passwd->pw_uid;
+        } else {
+            /* Some invalid value ? */
+            val.integer = str2int(prog_options.user);
+        }
+
         if (prog_options.userneg)
-            compflag = COMP_UNLIKE;
+            compflag = COMP_DIFF;
         else
-            compflag = COMP_LIKE;
+            compflag = COMP_EQUAL;
         if (!is_expr)
-            CreateBoolCond(&match_expr, compflag, CRITERIA_OWNER, val);
+            CreateBoolCond(&match_expr, compflag, CRITERIA_UID, val);
         else
-            AppendBoolCond(&match_expr, compflag, CRITERIA_OWNER, val);
+            AppendBoolCond(&match_expr, compflag, CRITERIA_UID, val);
         is_expr = 1;
-        query_mask |= ATTR_MASK_owner;
+        query_mask |= ATTR_MASK_uid;
     }
 
     if (prog_options.match_group)
     {
         compare_value_t val;
-        strcpy(val.str, prog_options.group);
-        if (prog_options.groupneg)
-            compflag = COMP_UNLIKE;
+        struct group *group;
+
+        /* TODO: we should select either CRITERIA_GID or
+         * CRITERIA_GNAME. Groupnames with regex are not supported. */
+
+        /* group name to gid. */
+        group = getgrnam(prog_options.group);
+        if (group) {
+            val.integer = group->gr_gid;
+        } else {
+            /* Some invalid value ? */
+            val.integer = str2int(prog_options.group);
+        }
+
+        if (prog_options.userneg)
+            compflag = COMP_DIFF;
         else
-            compflag = COMP_LIKE;
+            compflag = COMP_EQUAL;
         if (!is_expr)
-            CreateBoolCond(&match_expr, compflag, CRITERIA_GROUP, val);
+            CreateBoolCond(&match_expr, compflag, CRITERIA_GID, val);
         else
-            AppendBoolCond(&match_expr, compflag, CRITERIA_GROUP, val);
+            AppendBoolCond(&match_expr, compflag, CRITERIA_GID, val);
+
         is_expr = 1;
-        query_mask |= ATTR_MASK_gr_name;
+        query_mask |= ATTR_MASK_gid;
     }
 
     if (prog_options.match_name)
@@ -843,6 +871,10 @@ static inline void print_entry(const wagon_t *id, const attr_set_t * attrs)
         const char * type;
         char date_str[128];
         char mode_str[128];
+        char uname[LOGIN_NAME_MAX];
+        char gname[LOGIN_NAME_MAX];
+        struct passwd *passwd;
+        struct group *group;
 #ifdef ATTR_INDEX_status
         const char * status_str = "";
 
@@ -875,18 +907,31 @@ static inline void print_entry(const wagon_t *id, const attr_set_t * attrs)
             strftime(date_str, 128, "%Y/%m/%d %T", localtime_r(&tt, &stm));
         }
 
+        /* UID/GID to username/group. */
+        passwd = GetPwUid(ATTR(attrs, uid));
+        if (passwd)
+            sprintf(uname, "%-10s", passwd->pw_name);
+        else
+            sprintf(uname, "%10u", ATTR(attrs, uid));
+
+        group = GetGrGid(ATTR(attrs, gid));
+        if (group)
+            sprintf(gname, "%-10s", group->gr_name);
+        else
+            sprintf(gname, "%10u", ATTR(attrs, gid));
+
         if (ATTR_MASK_TEST(attrs, type) && !strcmp(ATTR(attrs, type), STR_TYPE_LINK)
             && ATTR_MASK_TEST(attrs, link))
             /* display: id, type, mode, nlink, (status,) owner, group, size, mtime, path -> link */
             printf(DFID" %-4s %s %3u  "STATUS_FORMAT"%-10s %-10s %15"PRIu64" %20s %s -> %s\n",
                    PFID(&id->id), type, mode_str, ATTR(attrs, nlink) STATUS_VAL,
-                   ATTR(attrs, owner), ATTR(attrs, gr_name),
+                   uname, gname,
                    ATTR(attrs, size), date_str, id->fullname, ATTR(attrs,link));
         else
             /* display all: id, type, mode, nlink, (status,) owner, group, size, mtime, path */
             printf(DFID" %-4s %s %3u  "STATUS_FORMAT"%-10s %-10s %15"PRIu64" %20s %s\n",
                    PFID(&id->id), type, mode_str, ATTR(attrs, nlink) STATUS_VAL,
-                   ATTR(attrs, owner), ATTR(attrs, gr_name),
+                   uname, gname,
                    ATTR(attrs, size), date_str, id->fullname);
     }
     else if (prog_options.lsstat)
@@ -1511,6 +1556,9 @@ int main( int argc, char **argv )
 
     if (CheckLastFS(  ) != 0)
         exit(1);
+
+    /* Initialize UID/GID cache. */
+    InitUidGid_Cache();
 
     /* Create database access */
     rc = ListMgr_InitAccess(&lmgr);
