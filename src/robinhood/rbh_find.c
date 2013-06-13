@@ -43,6 +43,7 @@
 #define OPT_ST_CTIME 256
 #define OPT_ST_MTIME 257
 #define OPT_ST_ATIME 258
+#define OPT_LSOST    259
 
 static struct option option_tab[] =
 {
@@ -62,6 +63,7 @@ static struct option option_tab[] =
     {"st-atime", required_argument, NULL, OPT_ST_ATIME},
 #ifdef _LUSTRE
     {"ost", required_argument, NULL, 'o'},
+    {"lsost", no_argument, NULL, OPT_LSOST},
 #endif
 #ifdef ATTR_INDEX_status
     {"status", required_argument, NULL, 'S'},
@@ -141,6 +143,7 @@ struct find_opt
     /* output flags */
     unsigned int ls:1;
     unsigned int lsstat:1;
+    unsigned int lsost:1;
 
     /* condition flags */
     unsigned int match_user:1;
@@ -204,6 +207,8 @@ static int query_mask = 0;
 #define LSSTAT_MASK (ATTR_MASK_type | ATTR_MASK_name | ATTR_MASK_uid |\
                      ATTR_MASK_gid | ATTR_MASK_size | ATTR_MASK_ctime | \
                      ATTR_MASK_mtime | ATTR_MASK_atime)
+
+#define LSOST_MASK (ATTR_MASK_type | ATTR_MASK_name | ATTR_MASK_stripe_items)
 
 //static lmgr_filter_t    dir_filter;
 
@@ -477,6 +482,9 @@ static const char *help_string =
     _B "Output options:" B_ "\n"
     "    " _B "-ls" B_" \t: display attributes\n"
     "    " _B "-lsstat" B_" \t: display inode stat\n"
+#ifdef _LUSTRE
+    "    " _B "-lsost" B_" \t: display OST information\n"
+#endif
     "\n"
     _B "Program options:" B_ "\n"
     "    " _B "-f" B_ " " _U "config_file" U_ "\n"
@@ -903,6 +911,14 @@ static inline void print_entry(const wagon_t *id, const attr_set_t * attrs)
             printf("SKIPPED(%x,%x)=%s\n", attrs->attr_mask, LSSTAT_MASK, id->fullname);
         }
     }
+#ifdef _LUSTRE
+    else if (prog_options.lsost) {
+        char tmpbuf[24576];
+
+        FormatStripeList( tmpbuf, sizeof(tmpbuf)-1, &ATTR( attrs, stripe_items), FALSE);
+        printf("%s\t%s\n", id->fullname, tmpbuf);
+    }
+#endif
     else
     {
         /* just display name */
@@ -1381,6 +1397,16 @@ int main( int argc, char **argv )
                 exit(1);
             }
             break;
+#ifdef _LUSTRE
+        case OPT_LSOST:
+            prog_options.lsost = 1;
+            disp_mask = LSOST_MASK;
+            if (neg) {
+                fprintf(stderr, "! (-not) unexpected before -lsost option\n");
+                exit(1);
+            }
+            break;
+#endif
         case 'f':
             strncpy( config_file, optarg, MAX_OPT_LEN );
             if (neg) {
