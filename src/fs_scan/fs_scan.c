@@ -567,12 +567,17 @@ static int HandleFSEntry( thread_scan_info_t * p_info, robinhood_task_t * p_task
 static int HandleFSEntry( thread_scan_info_t * p_info, robinhood_task_t * p_task, char *entry_name, DIR * parent )
 #endif
 {
-    char           entry_path[RBH_PATH_MAX];
+    /* For Lustre: mount point + ".lustre/fid/[0xxxxx:0xxxx:0xxxx]/" + filename */
+    char           entry_path[ RBH_PATH_MAX + 100 + RBH_NAME_MAX ];
     struct stat    inode;
     int            st;
 
     /* build absolute path */
+#if _HAVE_FID
+    BuildFidPathName(&p_task->dir_id, entry_name, entry_path);
+#else
     snprintf( entry_path, RBH_PATH_MAX, "%s/%s", p_task->path, entry_name );
+#endif
 
     /* retrieve information about the entry (to know if it's a directory or something else) */
 #if defined( _LUSTRE ) && defined( _MDS_STAT_SUPPORT )
@@ -823,6 +828,8 @@ static void   *Thr_scan( void *arg_thread )
     struct dirent *cookie_rep;
 #endif
 
+    const char *open_path;
+
     struct timeval start_dir;
     struct timeval end_dir;
     struct timeval diff;
@@ -932,21 +939,29 @@ static void   *Thr_scan( void *arg_thread )
 
 
         /* open directory */
+#if _HAVE_FID
+        char fidpath[RBH_PATH_MAX + 100]; /* mount point + ".lustre/fid/[0xxxxx:0xxxx:0xxxx]" */
+
+        BuildFidPath(&p_task->dir_id, fidpath);
+        open_path = fidpath;
+#else
+        open_path = p_task->path;
+#endif
 
 #ifndef _NO_AT_FUNC
         #define OPENDIR_STR "open"
-        dirfd = open(p_task->path, O_RDONLY | O_DIRECTORY | O_NOATIME);
+        dirfd = open(open_path, O_RDONLY | O_DIRECTORY | O_NOATIME);
         if (dirfd < 0) /* try without NOATIME */
-            dirfd = open(p_task->path, O_RDONLY | O_DIRECTORY);
+            dirfd = open(open_path, O_RDONLY | O_DIRECTORY);
         if (dirfd < 0)
 #else
         #define OPENDIR_STR "opendir"
-        if ( ( dirp = opendir( p_task->path ) ) == NULL )
+        if ( ( dirp = opendir( open_path ) ) == NULL )
 #endif
         {
             DisplayLog( LVL_CRIT, FSSCAN_TAG,
                         OPENDIR_STR" on %s failed: Error %d: %s",
-                        p_task->path, errno, strerror( errno ) );
+                        open_path, errno, strerror( errno ) );
 
             p_info->entries_errors ++;
 
