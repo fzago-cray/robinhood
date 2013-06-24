@@ -791,12 +791,17 @@ static int process_one_entry(thread_scan_info_t *p_info,
                              robinhood_task_t *p_task,
                              char *entry_name, int parentfd)
 {
-    char           entry_path[RBH_PATH_MAX];
+    /* For Lustre: mount point + ".lustre/fid/[0xxxxx:0xxxx:0xxxx]/" + filename */
+    char           entry_path[ RBH_PATH_MAX + 100 + RBH_NAME_MAX ];
     struct stat    inode;
     int            rc = 0;
 
     /* build absolute path */
+#if _HAVE_FID
+    BuildFidPathName(&p_task->dir_id, entry_name, entry_path);
+#else
     snprintf(entry_path, RBH_PATH_MAX, "%s/%s", p_task->path, entry_name);
+#endif
 
     /* retrieve information about the entry (to know if it's a directory or something else) */
     rc = stat_entry(entry_path, entry_name, parentfd, &inode);
@@ -983,19 +988,29 @@ static int process_one_dir(robinhood_task_t *p_task,
     struct dirent *cookie_rep;
 #endif
     int     rc = 0;
+    const char *open_path;
 
     (*nb_entries) = 0;
 
     /* hearbeat before opendir */
     p_info->last_action = time(NULL);
 
-    dirp = dir_open(p_task->path);
+#if _HAVE_FID
+    char fidpath[RBH_PATH_MAX + 100]; /* mount point + ".lustre/fid/[0xxxxx:0xxxx:0xxxx]" */
+
+    BuildFidPath(&p_task->dir_id, fidpath);
+    open_path = fidpath;
+#else
+    open_path = p_task->path;
+#endif
+
+    dirp = dir_open(open_path);
     if (DIR_ERR(dirp))
     {
         rc = -errno;
         DisplayLog(LVL_CRIT, FSSCAN_TAG,
                    OPENDIR_STR" failed on %s (%s)",
-                   p_task->path, strerror(-rc));
+                   open_path, strerror(-rc));
         (*nb_errors)++;
         return rc;
     }
@@ -1138,7 +1153,7 @@ static int process_one_task(robinhood_task_t *p_task,
     }
 
     /* As long as the current task path is (strictly)
-     * upper than partial scan root: just lookup, no readdir */ 
+     * upper than partial scan root: just lookup, no readdir */
     if (partial_scan_root && (strlen(p_task->path) <
                               strlen(partial_scan_root)))
     {
