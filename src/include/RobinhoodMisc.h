@@ -189,6 +189,9 @@ int CreateWithoutStripe( const char * path, mode_t mode, int overwrite );
 
 #ifdef _HAVE_FID
 int            BuildFidPath( const entry_id_t * p_id /* IN */ , char *path /* OUT */  );
+int            BuildFidPathName( const entry_id_t *parent_id,
+                                 const char *filename,
+                                 char *path );
 int            Lustre_GetFullPath( const entry_id_t * p_id, char *fullpath, unsigned int len );
 int            Lustre_GetFidFromPath( const char *fullpath, entry_id_t * p_id );
 int            Lustre_GetFidByFd(int fd, entry_id_t * p_id);

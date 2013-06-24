@@ -365,6 +365,26 @@ int BuildFidPath( const entry_id_t * p_id,       /* IN */
     return 0;
 }
 
+/**
+ * Build .lustre/fid path associated to a filename in a parent
+ * directory.
+ */
+int BuildFidPathName( const entry_id_t * parent_id,  /* IN */
+                      const char *filename,          /* IN */
+                      char *path )                   /* OUT */
+{
+    if ( !parent_id || !path )
+        return EFAULT;
+
+    sprintf(path, "%s"DFID"/%s", get_fid_dir(), PFID(parent_id), filename);
+
+#ifdef _DEBUG
+    DisplayLog( LVL_FULL, TAG_FIDPATH, "FidPath=%s", path );
+#endif
+
+    return 0;
+}
+
 /* Get POSIX path from fid (fid2path wrapper) */
 int Lustre_GetFullPath( const entry_id_t * p_id, char *fullpath, unsigned int len )
 {
