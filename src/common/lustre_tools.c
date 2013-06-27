@@ -449,12 +449,14 @@ int Lustre_GetNameParent(const char *path, int linkno,
     memcpy(pfid, &ldata.ld_lee->lee_parent_fid, sizeof(*pfid));
     fid_be_to_cpu(pfid, pfid);
 
-    len = ldata.ld_reclen - sizeof(struct link_ea_entry);
-    if (len >= namelen)
-        return -ERANGE;
+    if (name) {
+        len = ldata.ld_reclen - sizeof(struct link_ea_entry);
+        if (len >= namelen)
+            return -ERANGE;
 
-    strncpy(name, ldata.ld_lee->lee_name, len);
-    name[len] = '\0';
+        strncpy(name, ldata.ld_lee->lee_name, len);
+        name[len] = '\0';
+    }
     return 0;
 }
 #endif

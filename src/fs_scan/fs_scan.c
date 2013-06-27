@@ -1061,10 +1061,10 @@ static void   *Thr_scan( void *arg_thread )
             closedir( dirp );
 #endif
 
-        if ( p_task->depth > 0 )
+        if ( 1 )
         {
             /* Fill dir info and push it to the pileline for checking alerts on it,
-             * and possibly purge it if it is empty for a long time.
+             * and possibly purge it if it has been empty for a long time.
              */
 
             entry_proc_op_t * op;
@@ -1088,6 +1088,18 @@ static void   *Thr_scan( void *arg_thread )
             {
                 ATTR_MASK_SET( &op->fs_attrs, parent_id );
                 ATTR( &op->fs_attrs, parent_id ) = p_task->parent_task->dir_id;
+            } else {
+                /* Root of the scan. Usually the mount point, or can be a
+                 * partial scan. */
+                rc = Lustre_GetNameParent(p_task->path, 0, &ATTR( &op->fs_attrs, parent_id ),
+                                          NULL, 0);
+
+                if (rc == 0) {
+                    ATTR_MASK_SET( &op->fs_attrs, parent_id );
+                } else {
+                    DisplayLog(LVL_MAJOR, FSSCAN_TAG, "Failed to get parent FID for %s: %s",
+                               p_task->path, strerror(-rc));
+                }
             }
 
             ATTR_MASK_SET( &op->fs_attrs, name );
