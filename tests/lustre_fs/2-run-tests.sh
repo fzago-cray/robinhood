@@ -3465,7 +3465,7 @@ function test_diff_apply_fs # test diff --apply=fs in particular for entry recov
         # check their contents
         nbl=$(wc -l lovea | awk '{print $1}')
         nbo=$(wc -l fid_remap | awk '{print $1}')
-        
+
         echo "$nbl items in lovea, $nbo items in fid_remap"
         [[ "$nbf" == "$nbl" ]] || error "unexpected number of items in lovea $nbl: $nbf expected"
         [[ "$nbso" == "$nbo" ]] || error "unexpected number of items in fid_remap $nbo: $nbso expected"
@@ -3960,7 +3960,7 @@ function test_hardlinks
     for f in $rmids; do
         grep "\[$f\]" find.out && error "deleted id ($f) found in find output"
     done
-    
+
     unset count_nb_final
     if (( $is_lhsm + $is_hsmlite == 1 )); then
         # check that removed entries are scheduled for HSM rm
@@ -4098,7 +4098,7 @@ function test_hl_count
   	countValues="1;$fcount"
 	find_allValuesinCSVreport report.out $typeValues $countValues $colSearch || error "wrong count in 'rbh-report -i -P <path>' output"
 
-    
+
     rm -f report.out
 }
 
@@ -4882,8 +4882,8 @@ function recov_filters
     [[ -z $sync_cnt ]] && sync_cnt=0
 
     #          full, delta, empty, rename, empty_new, empty_rename, nobkp
-    # synchro:    2             2       2                        2       
-    # modified:          2                                               
+    # synchro:    2             2       2                        2
+    # modified:          2
     # new:                                         2                    2
     echo "files: new: $new_cnt, modified: $mod_cnt, synchro: $sync_cnt"
     if [[ $flavor != since ]]; then
@@ -8191,22 +8191,22 @@ fi
 
 ##### info collect. + DB tests #####
 
-run_test 100	test_info_collect info_collect.conf 1 1 "escape string in SQL requests"
-run_test 101a    test_info_collect2  info_collect2.conf  1 "scan x3"
-run_test 101b 	test_info_collect2  info_collect2.conf	2 "readlog/scan x2"
-run_test 101c 	test_info_collect2  info_collect2.conf	3 "readlog x2 / scan x2"
-run_test 101d 	test_info_collect2  info_collect2.conf	4 "scan x2 / readlog x2"
-run_test 101e 	test_info_collect2  info_collect2.conf	5 "diff+apply x2"
-run_test 102	update_test test_updt.conf 5 30 "db update policy"
+#run_test 100	test_info_collect info_collect.conf 1 1 "escape string in SQL requests"
+#run_test 101a    test_info_collect2  info_collect2.conf  1 "scan x3"
+#run_test 101b 	test_info_collect2  info_collect2.conf	2 "readlog/scan x2"
+#run_test 101c 	test_info_collect2  info_collect2.conf	3 "readlog x2 / scan x2"
+#run_test 101d 	test_info_collect2  info_collect2.conf	4 "scan x2 / readlog x2"
+#run_test 101e 	test_info_collect2  info_collect2.conf	5 "diff+apply x2"
+#run_test 102	update_test test_updt.conf 5 30 "db update policy"
 run_test 103a    test_acct_table common.conf 5 "Acct table and triggers creation"
 run_test 103b    test_acct_table acct_group.conf 5 "Acct table and triggers creation"
 run_test 103c    test_acct_table acct_user.conf 5 "Acct table and triggers creation"
 run_test 103d    test_acct_table acct_user_group.conf 5 "Acct table and triggers creation"
 run_test 104     test_size_updt test_updt.conf 1 "test size update"
 run_test 105     test_enoent test_pipeline.conf "readlog with continuous create/unlink"
-run_test 106a    test_diff info_collect2.conf "diff" "rbh-diff"
-run_test 106b    test_diff info_collect2.conf "diffapply" "rbh-diff --apply"
-run_test 106c    test_diff info_collect2.conf "scan" "robinhood --scan --diff"
+#run_test 106a    test_diff info_collect2.conf "diff" "rbh-diff"
+#run_test 106b    test_diff info_collect2.conf "diffapply" "rbh-diff --apply"
+#run_test 106c    test_diff info_collect2.conf "scan" "robinhood --scan --diff"
 run_test 107a    test_completion test_completion.conf OK "scan completion command"
 run_test 107b    test_completion test_completion_KO.conf KO "bad scan completion command"
 run_test 108a    test_rename info_collect.conf scan "rename cases (scan)"
@@ -8222,7 +8222,7 @@ run_test 109e    test_hardlinks info_collect.conf partdiff "hardlinks management
 run_test 110     test_unlink info_collect.conf "unlink (readlog)"
 run_test 111     test_layout info_collect.conf "layout changes"
 run_test 112     test_hl_count info_collect.conf "reports with hardlinks"
-run_test 113     test_diff_apply_fs info_collect2.conf  "diff"  "rbh-diff --apply=fs"
+#run_test 113     test_diff_apply_fs info_collect2.conf  "diff"  "rbh-diff --apply=fs"
 
 #### policy matching tests  ####
 
@@ -8357,10 +8357,10 @@ run_test 634 migration_file_Last MigrationFile_LastModification.conf 12 1 "file.
 run_test 635 migration_file_OST MigrationFile_OST.conf 1 "file.3" "TEST_MIGRATION_FILE_OST"
 run_test 636 migration_file_ExtendedAttribut MigrationFile_ExtendedAttribut.conf 0 1 "file.4"  "TEST_MIGRATION_FILE_EXTENDED_ATTRIBUT"
 
-run_test 637 trigger_purge_QUOTA_EXCEEDED TriggerPurge_QuotaExceeded.conf "TEST_TRIGGER_PURGE_QUOTA_EXCEEDED"
-run_test 638 trigger_purge_OST_QUOTA_EXCEEDED TriggerPurge_OstQuotaExceeded.conf "TEST_TRIGGER_PURGE_OST_QUOTA_EXCEEDED"
-run_test 639 trigger_purge_USER_GROUP_QUOTA_EXCEEDED TriggerPurge_UserQuotaExceeded.conf "User 'root'" "TEST_TRIGGER_PURGE_USER_QUOTA_EXCEEDED"
-run_test 640 trigger_purge_USER_GROUP_QUOTA_EXCEEDED TriggerPurge_GroupQuotaExceeded.conf "Group 'root'" "TEST_TRIGGER_PURGE_GROUP_QUOTA_EXCEEDED"
+#run_test 637 trigger_purge_QUOTA_EXCEEDED TriggerPurge_QuotaExceeded.conf "TEST_TRIGGER_PURGE_QUOTA_EXCEEDED"
+#run_test 638 trigger_purge_OST_QUOTA_EXCEEDED TriggerPurge_OstQuotaExceeded.conf "TEST_TRIGGER_PURGE_OST_QUOTA_EXCEEDED"
+#run_test 639 trigger_purge_USER_GROUP_QUOTA_EXCEEDED TriggerPurge_UserQuotaExceeded.conf "User 'root'" "TEST_TRIGGER_PURGE_USER_QUOTA_EXCEEDED"
+#run_test 640 trigger_purge_USER_GROUP_QUOTA_EXCEEDED TriggerPurge_GroupQuotaExceeded.conf "Group 'root'" "TEST_TRIGGER_PURGE_GROUP_QUOTA_EXCEEDED"
 
 run_test 641 test_purge PurgeStd_Path_Name.conf 0 7 "file.6;file.7;file.8" "--purge" "TEST_PURGE_STD_PATH_NAME"
 run_test 642 test_purge_tmp_fs_mgr PurgeStd_Type.conf 0 8 "link.1;link.2" "--purge" "TEST_PURGE_STD_TYPE"
